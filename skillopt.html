@@ -64,37 +64,183 @@
       display: block;
     }
 
+    .reveal {
+      opacity: 0;
+      transform: translateY(40px);
+      transition:
+        opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal {
+        opacity: 1;
+        transform: none;
+        transition: none;
+      }
+    }
+
     .topbar {
       position: fixed;
-      z-index: 20;
+      z-index: 100;
       top: 0;
       left: 0;
       right: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 18px;
-      padding: 14px 28px;
+      gap: 24px;
+      padding: 20px 48px;
       color: var(--ink);
-      background: rgba(255, 255, 255, 0.74);
-      border-bottom: 1px solid rgba(226, 232, 240, 0.86);
-      backdrop-filter: blur(14px);
+      background: rgba(255, 255, 255, 0.35);
+      border-bottom: 1px solid rgba(226, 232, 240, 0);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
       font-family: var(--mono);
       font-size: 0.78rem;
+      transition: background 0.3s, border-color 0.3s, box-shadow 0.3s, padding 0.3s;
+    }
+
+    .topbar.scrolled {
+      padding-top: 14px;
+      padding-bottom: 14px;
+      background: rgba(255, 255, 255, 0.66);
+      border-bottom: 1px solid rgba(226, 232, 240, 0.55);
+      box-shadow: 0 2px 16px rgba(15, 23, 42, 0.05);
+    }
+
+    .navbar-logos {
+      display: flex;
+      align-items: center;
+      gap: 22px;
     }
 
     .brandmark {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
-      font-weight: 600;
+      gap: 2px;
+      color: #0f172a;
+      font-family: var(--display);
+      font-size: 1.45rem;
+      font-weight: 650;
+      letter-spacing: -0.015em;
+      text-decoration: none;
       white-space: nowrap;
+      transition: opacity 0.25s ease;
+    }
+
+    .brandmark:hover {
+      opacity: 0.85;
+    }
+
+    .brandmark .brand-skill {
+      color: #0f172a;
+    }
+
+    .brandmark .brand-opt {
+      display: inline-block;
+      padding-right: 0.15em;
+      margin-right: -0.15em;
+      background: linear-gradient(110deg, #0ea5e9 0%, #4f46e5 25%, #7c3aed 50%, #ec4899 78%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-style: italic;
     }
 
     .microsoft-mark {
       width: 16px;
       height: 16px;
+      margin-right: 8px;
       flex: 0 0 auto;
+    }
+
+    .navbar-divider {
+      width: 1px;
+      height: 30px;
+      background: #cbd5e1;
+    }
+
+    .navbar-related {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px 5px 10px;
+      color: inherit;
+      background: rgba(255, 255, 255, 0.70);
+      border: 1px solid rgba(124, 58, 237, 0.20);
+      border-radius: 999px;
+      text-decoration: none;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .navbar-related:hover {
+      color: inherit;
+      transform: translateY(-1px);
+      border-color: rgba(124, 58, 237, 0.42);
+      box-shadow: 0 4px 14px rgba(124, 58, 237, 0.14);
+    }
+
+    .navbar-related .nr-icon {
+      position: relative;
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      border-radius: 5px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed 56%, #ec4899);
+    }
+
+    .navbar-related .nr-icon::before {
+      content: "";
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 6px;
+      height: 6px;
+      border: 1.5px solid #ffffff;
+      border-radius: 999px;
+    }
+
+    .navbar-related .nr-icon::after {
+      content: "";
+      position: absolute;
+      right: 3px;
+      bottom: 4px;
+      width: 5px;
+      height: 1.5px;
+      background: #ffffff;
+      border-radius: 999px;
+      transform: rotate(45deg);
+    }
+
+    .navbar-related .nr-label {
+      display: block;
+      color: var(--violet);
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .navbar-related .nr-name {
+      display: block;
+      margin-top: 2px;
+      font-family: var(--display);
+      font-size: 0.98rem;
+      font-weight: 750;
+      line-height: 1;
+      letter-spacing: -0.01em;
+      background: linear-gradient(135deg, #4f46e5, #ec4899);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
 
     .nav {
@@ -102,13 +248,16 @@
       align-items: center;
       justify-content: flex-end;
       flex-wrap: wrap;
-      gap: 8px 16px;
+      gap: 18px 28px;
     }
 
     .nav a {
       color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 600;
       text-decoration: none;
       border-bottom: 1px solid transparent;
+      transition: color 0.2s, border-color 0.2s;
     }
 
     .nav a:hover {
@@ -1433,20 +1582,26 @@
 
     @media (max-width: 980px) {
       .topbar {
-        position: static;
-        color: var(--ink);
-        background: var(--paper);
-        border-bottom: 1px solid var(--line);
-        backdrop-filter: none;
+        padding: 12px 18px;
+        gap: 16px;
+      }
+
+      .navbar-logos {
+        gap: 14px;
+      }
+
+      .navbar-related {
+        padding-right: 10px;
       }
 
       .nav a {
         color: var(--muted);
+        font-size: 0.85rem;
       }
 
       .hero {
         min-height: auto;
-        padding-top: 60px;
+        padding-top: 126px;
       }
 
       .hero-inner,
@@ -1490,6 +1645,17 @@
         padding: 12px;
         align-items: flex-start;
         flex-direction: column;
+        position: static;
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .navbar-logos {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .navbar-divider {
+        display: none;
       }
 
       .nav {
@@ -1497,7 +1663,7 @@
       }
 
       .hero {
-        padding: 36px 12px 34px;
+        padding: 40px 12px 34px;
       }
 
       .hero h1 {
@@ -1565,16 +1731,26 @@
   </style>
 </head>
 <body>
-  <header class="topbar" aria-label="Page navigation">
-    <a class="brandmark" href="#top" aria-label="SkillOpt home">
-      <svg class="microsoft-mark" viewBox="0 0 23 23" aria-hidden="true">
-        <rect width="10" height="10" fill="#F25022"></rect>
-        <rect x="13" width="10" height="10" fill="#7FBA00"></rect>
-        <rect y="13" width="10" height="10" fill="#00A4EF"></rect>
-        <rect x="13" y="13" width="10" height="10" fill="#FFB900"></rect>
-      </svg>
-      <span>SkillOpt</span>
-    </a>
+  <header class="topbar" id="navbar" aria-label="Page navigation">
+    <div class="navbar-logos">
+      <a class="brandmark" href="#top" aria-label="SkillOpt home">
+        <svg class="microsoft-mark" viewBox="0 0 23 23" aria-hidden="true">
+          <rect width="10" height="10" fill="#F25022"></rect>
+          <rect x="13" width="10" height="10" fill="#7FBA00"></rect>
+          <rect y="13" width="10" height="10" fill="#00A4EF"></rect>
+          <rect x="13" y="13" width="10" height="10" fill="#FFB900"></rect>
+        </svg>
+        <span class="brand-skill">Skill</span><span class="brand-opt">Opt</span>
+      </a>
+      <div class="navbar-divider" aria-hidden="true"></div>
+      <a class="navbar-related" href="https://microsoft.github.io/SkillLens/" target="_blank" rel="noopener" title="Companion project: SkillLens">
+        <span class="nr-icon" aria-hidden="true"></span>
+        <span>
+          <span class="nr-label">Related</span>
+          <span class="nr-name">SkillLens</span>
+        </span>
+      </a>
+    </div>
     <nav class="nav" aria-label="Sections">
       <a href="#idea">Idea</a>
       <a href="#method">Method</a>
@@ -2238,6 +2414,47 @@
     </footer>
   </main>
   <script>
+    (function () {
+      const navbar = document.getElementById("navbar");
+      const updateNavbar = () => {
+        if (!navbar) return;
+        navbar.classList.toggle("scrolled", window.scrollY > 40);
+      };
+      updateNavbar();
+      window.addEventListener("scroll", updateNavbar, { passive: true });
+
+      const revealSelector = [
+        ".teaser-showcase",
+        ".section-header",
+        ".manifesto",
+        ".method-grid",
+        ".figure-frame",
+        ".table-wrap",
+        ".comparison-frame",
+        ".ablation-layout",
+        ".evolution-shell",
+        ".evolution-footnotes",
+        ".transfer-grid",
+        ".callout",
+        ".citation-panel"
+      ].join(",");
+      const revealNodes = Array.from(document.querySelectorAll(revealSelector));
+      revealNodes.forEach((node) => node.classList.add("reveal"));
+
+      if ("IntersectionObserver" in window) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("visible");
+            }
+          });
+        }, { threshold: 0, rootMargin: "0px 0px -8% 0px" });
+        revealNodes.forEach((node) => observer.observe(node));
+      } else {
+        revealNodes.forEach((node) => node.classList.add("visible"));
+      }
+    })();
+
     const methodComparison = {
       methods: [
         { key: "NoSkill", label: "No skill", color: "#94a3b8" },
