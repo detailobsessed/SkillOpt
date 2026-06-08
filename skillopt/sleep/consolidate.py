@@ -84,6 +84,7 @@ def consolidate(
     gate_metric: str = "mixed",
     gate_mixed_weight: float = 0.5,
     gate_mode: str = "on",       # "on" (hard/soft per gate_metric) | "off" (greedy)
+    rollouts_k: int = 1,         # >1 => multi-rollout contrastive reflection
     evolve_skill: bool = True,
     evolve_memory: bool = True,
     night: int = 1,
@@ -136,10 +137,27 @@ def consolidate(
         return doc
 
     if evolve_skill:
-        edits = backend.reflect(
-            failures, successes, cand_skill, cand_memory,
-            edit_budget=edit_budget, evolve_skill=True, evolve_memory=False,
-        )
+        if rollouts_k > 1:
+            # multi-rollout contrastive reflection: run each train task K times
+            # and distill a rule from the good-vs-bad contrast (the "脑补" signal).
+            from skillopt.sleep.rollout import multi_rollout, contrastive_reflect
+            sets = [multi_rollout(backend, t, cand_skill, cand_memory, k=rollouts_k)
+                    for t in train_tasks]
+            edits = contrastive_reflect(
+                backend, sets, cand_skill, cand_memory,
+                edit_budget=edit_budget, target="skill",
+            )
+            # fall back to single-shot reflect if contrast yielded nothing
+            if not edits:
+                edits = backend.reflect(
+                    failures, successes, cand_skill, cand_memory,
+                    edit_budget=edit_budget, evolve_skill=True, evolve_memory=False,
+                )
+        else:
+            edits = backend.reflect(
+                failures, successes, cand_skill, cand_memory,
+                edit_budget=edit_budget, evolve_skill=True, evolve_memory=False,
+            )
         cand_skill = _gate_apply(cand_skill, edits, "skill")
 
     if evolve_memory:

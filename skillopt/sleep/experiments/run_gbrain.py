@@ -45,7 +45,7 @@ def _score(backend, tasks, skill, memory, split="test", metric="mixed", w=0.5):
 
 def run_seed(backend, seed: str, skill: str, tasks: List, *,
              nights: int = 3, edit_budget: int = 4, gate_mode: str = "on",
-             slow_update: bool = True,
+             slow_update: bool = True, rollouts_k: int = 1,
              limit_replay: int = 0, limit_holdout: int = 0) -> dict:
     memory = ""
     # optionally cap each split to control API cost / latency.
@@ -69,7 +69,8 @@ def run_seed(backend, seed: str, skill: str, tasks: List, *,
         res = consolidate(
             backend, tasks, cur, memory,
             edit_budget=edit_budget, gate_metric="mixed", gate_mixed_weight=0.5,
-            gate_mode=gate_mode, evolve_skill=True, evolve_memory=False, night=night,
+            gate_mode=gate_mode, rollouts_k=rollouts_k,
+            evolve_skill=True, evolve_memory=False, night=night,
         )
         if res.accepted:
             cur = res.new_skill
@@ -136,6 +137,11 @@ def main(argv=None) -> int:
     ap.add_argument("--edit-budget", type=int, default=4)
     ap.add_argument("--gate", default="on", choices=["on", "off", "hard", "soft"],
                     help="on/hard/soft = validation-gated; off = greedy (no hard filter)")
+    ap.add_argument("--rollouts-k", type=int, default=1,
+                    help=">1 = multi-rollout contrastive reflection per task")
+    ap.add_argument("--budget-tokens", type=int, default=0,
+                    help="approx token budget; auto-plans nights x rollouts when set")
+    ap.add_argument("--budget-minutes", type=float, default=0.0)
     ap.add_argument("--limit-replay", type=int, default=0, help="cap #train tasks (cost control)")
     ap.add_argument("--limit-holdout", type=int, default=0, help="cap #val and #test tasks (cost control)")
     ap.add_argument("--json", action="store_true")
@@ -160,8 +166,19 @@ def main(argv=None) -> int:
         skill, tasks = load_seed(data_root, seed)
         if not tasks:
             continue
-        r = run_seed(backend, seed, skill, tasks, nights=args.nights,
-                     edit_budget=args.edit_budget,
+        # budget auto-planning: derive nights x rollouts_k from a token budget
+        nights, rollouts_k = args.nights, args.rollouts_k
+        if args.budget_tokens:
+            from skillopt.sleep.budget import Budget, plan_depth
+            n_train = len([t for t in tasks if t.split == "train"]) or len(tasks)
+            nights, rollouts_k = plan_depth(
+                Budget(max_tokens=args.budget_tokens), n_tasks=n_train,
+                default_nights=args.nights, default_k=args.rollouts_k,
+            )
+            if not args.json:
+                print(f"  [budget] {args.budget_tokens} tok -> nights={nights} rollouts_k={rollouts_k}")
+        r = run_seed(backend, seed, skill, tasks, nights=nights,
+                     edit_budget=args.edit_budget, rollouts_k=rollouts_k,
                      gate_mode=("off" if args.gate == "off" else "on"),
                      limit_replay=args.limit_replay, limit_holdout=args.limit_holdout)
         results.append(r)

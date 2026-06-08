@@ -232,6 +232,49 @@ class TestLlmMiner(unittest.TestCase):
         self.assertEqual(make_llm_miner(EmptyBackend())([digest]), [])
 
 
+class TestMultiRolloutAndBudget(unittest.TestCase):
+    def test_rolloutset_stats(self):
+        from skillopt.sleep.rollout import RolloutSet
+        from skillopt.sleep.types import ReplayResult, TaskRecord
+        rs = RolloutSet(task=TaskRecord(id="t", project="/p", intent="x"),
+                        attempts=[ReplayResult(id="t", hard=1.0),
+                                  ReplayResult(id="t", hard=0.0),
+                                  ReplayResult(id="t", hard=1.0)])
+        self.assertEqual(rs.best.hard, 1.0)
+        self.assertEqual(rs.worst.hard, 0.0)
+        self.assertEqual(rs.spread, 1.0)
+        self.assertAlmostEqual(rs.pass_rate, 2 / 3)
+
+    def test_budget_exhaustion_and_plan(self):
+        from skillopt.sleep.budget import Budget, plan_depth
+        clock = [0.0]
+        b = Budget(max_tokens=1000)
+        b.start(lambda: clock[0], tokens_now=0)
+        self.assertFalse(b.exhausted(tokens_now=500, clock_fn=lambda: clock[0]))
+        self.assertTrue(b.exhausted(tokens_now=1000, clock_fn=lambda: clock[0]))
+        self.assertEqual(plan_depth(Budget(), n_tasks=5, default_nights=2, default_k=1), (2, 1))
+        nights, k = plan_depth(Budget(max_tokens=100_000), n_tasks=5)
+        self.assertGreaterEqual(nights, 1)
+        self.assertGreaterEqual(k, 1)
+
+    def test_contrastive_reflect_with_stub(self):
+        from skillopt.sleep.backend import Backend
+        from skillopt.sleep.rollout import RolloutSet, contrastive_reflect
+        from skillopt.sleep.types import ReplayResult, TaskRecord
+
+        class StubBackend(Backend):
+            name = "stub"
+            def _call(self, prompt, *, max_tokens=1024):
+                return '[{"op":"add","content":"always do the good thing","rationale":"good passed"}]'
+
+        rs = RolloutSet(task=TaskRecord(id="t", project="/p", intent="x"),
+                        attempts=[ReplayResult(id="t", hard=1.0, response="good"),
+                                  ReplayResult(id="t", hard=0.0, response="bad")])
+        edits = contrastive_reflect(StubBackend(), [rs], "skill", "")
+        self.assertEqual(len(edits), 1)
+        self.assertIn("good thing", edits[0].content)
+
+
 class TestSlowUpdate(unittest.TestCase):
     def test_protected_field_roundtrip(self):
         from skillopt.sleep.slow_update import (
