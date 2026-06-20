@@ -944,5 +944,67 @@ class TestCopilotBackend(unittest.TestCase):
             shutil.rmtree(stub_dir, ignore_errors=True)
 
 
+class TestClaudeCliBackendBare(unittest.TestCase):
+    """Issue #68: --bare must be conditional on ANTHROPIC_API_KEY."""
+
+    def test_bare_included_when_api_key_set(self):
+        """With ANTHROPIC_API_KEY, --bare should appear in the command."""
+        from skillopt_sleep.backend import ClaudeCliBackend
+        be = ClaudeCliBackend(claude_path="/usr/bin/false", timeout=5)
+        with unittest.mock.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            # We can't run the real CLI, but we can inspect cmd construction
+            # by monkeypatching subprocess.run to capture the command.
+            captured = {}
+            def fake_run(cmd, **kwargs):
+                captured["cmd"] = cmd
+                class FakeProc:
+                    stdout = "hello"
+                    stderr = ""
+                    returncode = 0
+                return FakeProc()
+            with unittest.mock.patch("subprocess.run", side_effect=fake_run):
+                be._call("test prompt")
+            self.assertIn("--bare", captured["cmd"])
+
+    def test_bare_omitted_without_api_key(self):
+        """Without ANTHROPIC_API_KEY, --bare should NOT appear."""
+        from skillopt_sleep.backend import ClaudeCliBackend
+        be = ClaudeCliBackend(claude_path="/usr/bin/false", timeout=5)
+        env = os.environ.copy()
+        env.pop("ANTHROPIC_API_KEY", None)
+        with unittest.mock.patch.dict(os.environ, env, clear=True):
+            captured = {}
+            def fake_run(cmd, **kwargs):
+                captured["cmd"] = cmd
+                class FakeProc:
+                    stdout = "hello"
+                    stderr = ""
+                    returncode = 0
+                return FakeProc()
+            with unittest.mock.patch("subprocess.run", side_effect=fake_run):
+                be._call("test prompt")
+            self.assertNotIn("--bare", captured["cmd"])
+
+    def test_cli_error_detected_and_logged(self):
+        """Auth errors in CLI output should trigger a warning."""
+        from skillopt_sleep.backend import ClaudeCliBackend
+        be = ClaudeCliBackend(claude_path="/usr/bin/false", timeout=5)
+        captured = {}
+        def fake_run(cmd, **kwargs):
+            captured["cmd"] = cmd
+            class FakeProc:
+                stdout = "Not logged in · Please run /login"
+                stderr = ""
+                returncode = 0
+            return FakeProc()
+        with unittest.mock.patch.dict(os.environ, {}, clear=False):
+            with unittest.mock.patch("subprocess.run", side_effect=fake_run):
+                result = be._call("test prompt")
+        # The error string is returned as output (backwards-compat)
+        self.assertIn("Not logged in", result)
+        # But it's also recorded for detection
+        self.assertIn("Not logged in", getattr(be, "last_call_error", ""))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
