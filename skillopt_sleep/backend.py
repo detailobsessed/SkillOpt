@@ -890,16 +890,27 @@ class CodexCliBackend(CliBackend):
             if self.model:
                 cmd += ["-m", self.model]
             cmd += ["--", prompt]
+            self.last_call_error = ""
+            proc = None
             try:
-                subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout, cwd=work)
-            except Exception:
-                pass
+                proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout, cwd=work)
+            except subprocess.TimeoutExpired:
+                self.last_call_error = f"codex exec (tools) timed out after {self.timeout}s"
+            except Exception as exc:  # noqa: BLE001
+                self.last_call_error = f"codex exec (tools) failed: {exc}"
             resp = ""
             try:
                 with open(out_path, encoding="utf-8") as f:
                     resp = f.read().strip()
             except Exception:
                 resp = ""
+            # Surface a failed tool-rollout the SAME way _call does: an auth/model/version
+            # failure on this path must show up in diagnostics (call_error), not vanish as a
+            # silent empty->0 scored as a failed rollout. Response stays "" (never the error text).
+            if not resp and not self.last_call_error and proc is not None and proc.returncode != 0:
+                self.last_call_error = (
+                    f"codex exec (tools) exited {proc.returncode}: {(proc.stderr or '')[:500]}"
+                )
             self._tokens += len(prompt) // 4 + len(resp) // 4
             called: List[str] = []
             if os.path.exists(calllog):

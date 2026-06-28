@@ -744,6 +744,29 @@ class TestCodexBackend(unittest.TestCase):
         self.assertIn("refresh_token_reused", be.last_call_error)   # surfaced for the operator
         self.assertEqual(calls["n"], 1)                             # failed fast, no wasted retries
 
+    def test_codex_attempt_with_tools_surfaces_error_not_silent(self):
+        """A failed tool-rollout (non-zero codex exec) on the tool path must set
+        last_call_error and return an empty response — not a silent empty->0 the
+        diagnostics can't see (the gap a _call-only fix would otherwise leave)."""
+        from skillopt_sleep.backend import CodexCliBackend
+
+        def fake_run(cmd, **kwargs):
+            class Proc:
+                returncode = 1
+                stdout = ""
+                stderr = "ERROR codex_core::auth: 401 Unauthorized: refresh_token_reused"
+            return Proc()  # writes nothing to out_path -> empty response
+
+        be = CodexCliBackend(codex_path="codex")
+        task = TaskRecord(id="t", project="/p", intent="answer the question",
+                          reference_kind="rule",
+                          judge={"checks": [{"op": "tool_called", "arg": "search"}]})
+        with mock.patch("skillopt_sleep.backend.subprocess.run", side_effect=fake_run):
+            resp, called = be.attempt_with_tools(task, "", "", ["search"])
+        self.assertEqual(resp, "")                     # no leaked error text as a "response"
+        self.assertIn("exited 1", be.last_call_error)  # failure surfaced for diagnostics
+        self.assertEqual(called, [])                   # no tool actually ran
+
 
 class TestMultiRolloutAndBudget(unittest.TestCase):
     def test_rolloutset_stats(self):
