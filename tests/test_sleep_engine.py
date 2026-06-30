@@ -1006,8 +1006,7 @@ class TestClaudeCliBackendBare(unittest.TestCase):
         self.assertIn("Not logged in", getattr(be, "last_call_error", ""))
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+
 
 class MockRewardHackingBackend(MockBackend):
     def attempt(self, task: TaskRecord, skill: str, memory: str, sample_id: int = 0) -> str:
@@ -1047,3 +1046,6 @@ class TestVerifierDiscipline(unittest.TestCase):
         self.assertFalse(res.accepted)
         self.assertGreater(len(res.rejected_edits), 0)
         self.assertIn("placeholder", res.rejected_edits[0].content)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
