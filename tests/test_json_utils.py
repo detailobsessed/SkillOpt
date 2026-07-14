@@ -101,6 +101,10 @@ class TestTopLevelBracketArrays:
     def test_bracket_inside_quoted_prose_is_ignored(self) -> None:
         assert _top_level_bracket_arrays('label is "set it to [x]" done') == []
 
+    def test_unmatched_prose_brace_does_not_hide_later_array(self) -> None:
+        text = "Explanation uses {placeholder, final answer [1, 2]"
+        assert _top_level_bracket_arrays(text) == ["[1, 2]"]
+
 
 class TestExtractJsonTolerantFallback:
     """extract_json — json_repair fallback for malformed non-OpenAI output."""
@@ -215,3 +219,7 @@ class TestExtractJsonArray:
     def test_nested_object_array_not_confused_with_array_answer(self) -> None:
         text = '{"items": [1, 2, 3]}'
         assert extract_json_array(text) is None
+
+    def test_unmatched_prose_brace_before_valid_array(self) -> None:
+        text = "Explanation uses {placeholder, final answer [1, 2]"
+        assert extract_json_array(text) == [1, 2]

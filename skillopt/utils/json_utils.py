@@ -82,7 +82,6 @@ def _top_level_bracket_arrays(text: str) -> list[str]:
     i, n = 0, len(text)
     outer_in_str = False
     outer_esc = False
-    brace_depth = 0
     while i < n:
         ch = text[i]
         if outer_in_str:
@@ -99,14 +98,36 @@ def _top_level_bracket_arrays(text: str) -> list[str]:
             i += 1
             continue
         if ch == "{":
-            brace_depth += 1
-            i += 1
+            # Skip balanced objects, including arrays nested inside them. An
+            # unmatched brace may be ordinary prose, though, so do not let it
+            # poison the rest of the scan and hide a later valid array.
+            depth = 0
+            in_str = False
+            esc = False
+            j = i
+            while j < n:
+                current = text[j]
+                if in_str:
+                    if esc:
+                        esc = False
+                    elif current == "\\":
+                        esc = True
+                    elif current == '"':
+                        in_str = False
+                elif current == '"':
+                    in_str = True
+                elif current == "{":
+                    depth += 1
+                elif current == "}":
+                    depth -= 1
+                    if depth == 0:
+                        i = j + 1
+                        break
+                j += 1
+            else:
+                i += 1
             continue
-        if ch == "}":
-            brace_depth = max(0, brace_depth - 1)
-            i += 1
-            continue
-        if ch != "[" or brace_depth:
+        if ch != "[":
             i += 1
             continue
 
