@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from typing import Dict
 
@@ -37,6 +38,11 @@ from skillopt_sleep.backend import CliBackend, skill_hash
 
 PENDING_SENTINEL_PREFIX = "[[SKILLOPT-SLEEP-PENDING:"
 PENDING_SENTINEL_SUFFIX = "]]"
+# Full sentinel pattern: [[SKILLOPT-SLEEP-PENDING:<16 hex digits>]]
+# skill_hash returns sha256.hexdigest()[:16], so the key is always 16 hex chars.
+_SENTINEL_RE = re.compile(
+    re.escape(PENDING_SENTINEL_PREFIX) + r"[0-9a-f]{16}" + re.escape(PENDING_SENTINEL_SUFFIX)
+)
 
 # reflect() appends this when a reply fails to parse; with a placeholder
 # reply the retry is a dependent call, not a genuinely new question.
@@ -85,7 +91,7 @@ class HandoffBackend(CliBackend):
         return os.path.join(self.answers_dir, f"{key}.md")
 
     def _call(self, prompt: str, *, max_tokens: int = 1024) -> str:
-        if PENDING_SENTINEL_PREFIX in prompt:
+        if _SENTINEL_RE.search(prompt):
             # Built from a still-pending response — dependent call.
             raise PendingCalls(self.pending)
         if _REFLECT_RETRY_MARKER in prompt and self.pending:
@@ -107,9 +113,12 @@ class HandoffBackend(CliBackend):
         Prompts can themselves contain markdown fences, so PROMPTS.md
         delimits each prompt with BEGIN/END marker lines instead of fences.
         Returns the PROMPTS.md path.
-        """
-        from skillopt_sleep.staging import redact_secrets
 
+        Note: operational prompts are NOT redacted — the answering agent needs
+        the full text to produce a correct answer. Secret redaction is applied
+        only to diagnostics (stderr, report files), not to the prompt/answer
+        channel. The handoff directory is treated as private user data.
+        """
         os.makedirs(self.handoff_dir, exist_ok=True)
         with self._lock:
             items = list(self.pending.items())
@@ -121,7 +130,7 @@ class HandoffBackend(CliBackend):
                     "id": key,
                     "answer_file": self.answer_path(key),
                     "max_tokens": item["max_tokens"],
-                    "prompt": redact_secrets(str(item["prompt"])),
+                    "prompt": str(item["prompt"]),
                 }
                 for key, item in items
             ],
@@ -163,7 +172,7 @@ class HandoffBackend(CliBackend):
                 f"- suggested max tokens: {item['max_tokens']}",
                 "",
                 f"----- BEGIN PROMPT {key} -----",
-                redact_secrets(str(item["prompt"])),
+                str(item["prompt"]),
                 f"----- END PROMPT {key} -----",
                 "",
             ]

@@ -34,6 +34,10 @@ class SessionDigest:
     n_user_turns: int = 0
     n_assistant_turns: int = 0
     raw_path: str = ""
+    # First user message before meta-prompt filtering, used by _is_agent_session
+    # to detect plugin self-invocation sessions (the command body is filtered
+    # from user_prompts but contains the marker _is_agent_session checks for).
+    raw_first_user_prompt: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

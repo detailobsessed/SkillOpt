@@ -151,7 +151,7 @@ class TestRequestKwargs(unittest.TestCase):
     def test_compat_mode_sends_standard_max_tokens(self):
         be = _backend_with(["hi"], COMPAT_ENV)
         with mock.patch.dict(os.environ, COMPAT_ENV, clear=True):
-            out = be._call("p", retries=1)
+            out = be._call("p", max_tokens=8192, retries=1)
         self.assertEqual(out, "hi")
         (call,) = be._client.chat.completions.calls
         self.assertEqual(call["max_tokens"], 8192)
@@ -162,9 +162,18 @@ class TestRequestKwargs(unittest.TestCase):
         env = dict(COMPAT_ENV, SKILLOPT_SLEEP_COMPAT_MAX_TOKENS="4096")
         be = _backend_with(["hi"], env)
         with mock.patch.dict(os.environ, env, clear=True):
-            be._call("p", retries=1)
+            be._call("p", max_tokens=8192, retries=1)
         (call,) = be._client.chat.completions.calls
         self.assertEqual(call["max_tokens"], 4096)
+
+    def test_compat_mode_respects_smaller_caller_max_tokens(self):
+        # min(caller=200, compat=8192) = 200 — the caller's budget wins
+        # when it's smaller than the compat cap.
+        be = _backend_with(["hi"], COMPAT_ENV)
+        with mock.patch.dict(os.environ, COMPAT_ENV, clear=True):
+            be._call("p", max_tokens=200, retries=1)
+        (call,) = be._client.chat.completions.calls
+        self.assertEqual(call["max_tokens"], 200)
 
     def test_extra_body_is_opt_in_via_env_not_model_name(self):
         # A deepseek-named model WITHOUT the env knob gets a pure standard

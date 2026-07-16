@@ -170,6 +170,9 @@ def cmd_run(args, dry: bool = False) -> int:
 
 
 def _print_run_report(outcome, args, task_meta: Dict[str, Any]) -> None:
+    if outcome is None:
+        print("[sleep] no report available (cycle stopped before completion)")
+        return
     rep = outcome.report
     if args.json:
         payload = _report_payload(rep, outcome)
@@ -272,9 +275,15 @@ def _handoff_mine_and_pin(cfg, args, backend, snapshot: str, dry: bool):
         max_tasks = cfg.get("max_tasks_per_night", 40)
         session_limit = cfg.get("max_sessions_per_night", 0) or max_tasks * 3
         digests = harvest_for_config(cfg, since_iso=since, limit=session_limit)
+        # The digests pin is written unredacted: the handoff dir is gitignored
+        # private local data (like PROMPTS.md), and redacting in-place before
+        # mining would alter what the LLM miner sees (e.g. password=oldvalue
+        # -> password=[REDACTED]), producing unusable tasks. Writing unredacted
+        # ensures the pin matches what mining actually saw, so prompt IDs are
+        # stable on resume.
         os.makedirs(backend.handoff_dir, exist_ok=True)
         with open(digests_path, "w", encoding="utf-8") as f:
-            json.dump(_redact_deep([d.to_dict() for d in digests]), f,
+            json.dump([d.to_dict() for d in digests], f,
                       ensure_ascii=False, indent=2)
 
     max_tasks = cfg.get("max_tasks_per_night", 40)
@@ -364,6 +373,9 @@ def _run_handoff(cfg, args, *, seed_tasks, task_meta: Dict[str, Any], dry: bool)
         pass
     if backend.pending:
         return _flush_handoff(backend, args)
+    if outcome is None:
+        _print_run_report(None, args, task_meta)
+        return 0
     _print_run_report(outcome, args, task_meta)
     # A completed real run ends the night: archive the handoff dir so the
     # next night re-harvests instead of replaying the pinned snapshot.

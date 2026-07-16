@@ -157,9 +157,14 @@ _AGENT_SESSION_MARKERS = (
 
 def _is_agent_session(digest: "SessionDigest") -> bool:
     """Detect transcripts written by other tools' sub-agents (see markers)."""
-    if not digest.user_prompts:
+    # Check the raw first user prompt (before meta-prompt filtering) first,
+    # because the command body that contains the marker is filtered out of
+    # user_prompts by _is_meta_prompt.
+    first = digest.raw_first_user_prompt or (
+        digest.user_prompts[0] if digest.user_prompts else ""
+    )
+    if not first:
         return False
-    first = digest.user_prompts[0]
     return any(marker in first for marker in _AGENT_SESSION_MARKERS)
 
 
@@ -210,6 +215,7 @@ def digest_transcript(path: str) -> Optional[SessionDigest]:
     feedback: List[str] = []
     n_user = 0
     n_asst = 0
+    raw_first_user_prompt = ""
 
     for rec in _iter_jsonl(path):
         rtype = rec.get("type")
@@ -233,6 +239,8 @@ def digest_transcript(path: str) -> Optional[SessionDigest]:
         content = msg.get("content")
         if role == "user":
             text = _text_from_content(content)
+            if text and not raw_first_user_prompt:
+                raw_first_user_prompt = text.strip()
             if text and not _is_meta_prompt(text):
                 n_user += 1
                 user_prompts.append(text.strip())
@@ -271,6 +279,7 @@ def digest_transcript(path: str) -> Optional[SessionDigest]:
         n_user_turns=n_user,
         n_assistant_turns=n_asst,
         raw_path=path,
+        raw_first_user_prompt=raw_first_user_prompt,
     )
 
 

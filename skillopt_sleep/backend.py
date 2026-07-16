@@ -1427,7 +1427,7 @@ class AzureOpenAIBackend(CliBackend):
                 # SKILLOPT_SLEEP_CHAT_EXTRA_BODY (see class docstring) — never
                 # inferred from the model name.
                 if self._compat_mode():
-                    kwargs["max_tokens"] = self.compat_max_tokens
+                    kwargs["max_tokens"] = min(max_tokens, self.compat_max_tokens)
                 else:
                     kwargs["max_completion_tokens"] = 16384
                 if self._compat_mode() and self.chat_extra_body:
