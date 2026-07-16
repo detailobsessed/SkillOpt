@@ -19,7 +19,7 @@ isolated context so the validation gate stays honest.
 
 ## The loop
 
-Repeat until the engine exits 0 (done) — at most 8 rounds:
+Repeat until the engine exits 0 (done):
 
 1. **Run the engine** via the bundled runner. Split `$ARGUMENTS` into the action
    and remaining options, and preserve those options on every resumed round:
